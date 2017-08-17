@@ -292,6 +292,7 @@ void Tracking::Track()
     {
         // System is initialized. Track Frame.
         bool bOK;
+        cout << "bOK 0: " << bOK << endl;
 
         // Initial camera pose estimation using motion model or relocalization (if tracking is lost)
         if(!mbOnlyTracking)
@@ -307,12 +308,15 @@ void Tracking::Track()
                 if(mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
                 {
                     bOK = TrackReferenceKeyFrame();
+
+        cout << "bOK 1: " << bOK << endl;
                 }
                 else
                 {
                     bOK = TrackWithMotionModel();
                     if(!bOK)
                         bOK = TrackReferenceKeyFrame();
+        cout << "bOK 2: " << bOK << endl;
                 }
             }
             else
@@ -327,6 +331,7 @@ void Tracking::Track()
             if(mState==LOST)
             {
                 bOK = Relocalization();
+        cout << "bOK 4: " << bOK << endl;
             }
             else
             {
@@ -393,6 +398,8 @@ void Tracking::Track()
         }
 
         mCurrentFrame.mpReferenceKF = mpReferenceKF;
+
+        cout << "bOK 3: " << bOK << endl;
 
         // If we have an initial estimation of the camera pose and matching. Track the local map.
         if(!mbOnlyTracking)
@@ -471,6 +478,7 @@ void Tracking::Track()
         // Reset if the camera get lost soon after initialization
         if(mState==LOST)
         {
+            cout << "key frames in map" << mpMap->KeyFramesInMap() << endl;
             if(mpMap->KeyFramesInMap()<=5)
             {
                 cout << "Track lost soon after initialisation, reseting..." << endl;
@@ -765,8 +773,9 @@ bool Tracking::TrackReferenceKeyFrame()
     vector<MapPoint*> vpMapPointMatches;
 
     int nmatches = matcher.SearchByBoW(mpReferenceKF,mCurrentFrame,vpMapPointMatches);
+    cout << "nmatches: " << nmatches << endl;
 
-    if(nmatches<15)
+    if(nmatches<5)
         return false;
 
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
@@ -795,11 +804,19 @@ bool Tracking::TrackReferenceKeyFrame()
         }
     }
 
-    return nmatchesMap>=10;
+    cout << "nmatchesMap: " << nmatchesMap << endl;
+    return nmatchesMap>=5;
 }
 
 void Tracking::UpdateLastFrame()
 {
+    if (mlRelativeFramePoses.size() < 2)
+	        {
+			        cout << "mlRelativeFramePoses size less than 2" << endl;
+				        return;
+					    }
+
+
     // Update pose according to reference keyframe
     KeyFrame* pRef = mLastFrame.mpReferenceKF;
     cv::Mat Tlr = mlRelativeFramePoses.back();
@@ -964,10 +981,14 @@ bool Tracking::TrackLocalMap()
 
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
+
+    cout << "mnMatchesInliers" << mnMatchesInliers << endl;
+    cout << "mCurrentFrameId" << mCurrentFrame.mnId << endl;
+    cout << "mnLastRelocFrameId+mMaxFrames" << mnLastRelocFrameId+mMaxFrames << endl;
     if(mCurrentFrame.mnId<mnLastRelocFrameId+mMaxFrames && mnMatchesInliers<50)
         return false;
 
-    if(mnMatchesInliers<30)
+    if(mnMatchesInliers<10)
         return false;
     else
         return true;
